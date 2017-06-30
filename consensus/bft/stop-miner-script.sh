@@ -1,0 +1,1 @@
+ssh -i ~/.ssh/ASWKeyPair.pem ec2-user@54.250.170.144 './stop-miner.sh'

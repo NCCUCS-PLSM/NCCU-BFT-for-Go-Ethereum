@@ -19,6 +19,7 @@ package utils
 
 import (
 	"crypto/ecdsa"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"math/big"
@@ -71,10 +72,8 @@ SUBCOMMANDS:
 
 func init() {
 	cli.AppHelpTemplate = `{{.Name}} {{if .Flags}}[global options] {{end}}command{{if .Flags}} [command options]{{end}} [arguments...]
-
 VERSION:
    {{.Version}}
-
 COMMANDS:
    {{range .Commands}}{{.Name}}{{with .ShortName}}, {{.}}{{end}}{{ "\t" }}{{.Usage}}
    {{end}}{{if .Flags}}
@@ -472,6 +471,26 @@ var (
 		Usage: "Minimum POW accepted",
 		Value: whisper.DefaultMinimumPoW,
 	}
+
+	// BFT parameters
+	NumValidatorsFlag = cli.IntFlag{
+		Name:  "num-validators",
+		Usage: "number of validators",
+		Value: 1,
+	}
+	NodeNumFlag = cli.IntFlag{
+		Name:  "node-num",
+		Usage: "node's specific number",
+		Value: 0,
+	}
+	BFTFlag = cli.BoolFlag{
+		Name:  "bft",
+		Usage: "change consensus to bft with true",
+	}
+	AllowEmptyFlag = cli.BoolFlag{
+		Name:  "allow-empty",
+		Usage: "allow empty block",
+	}
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating
@@ -504,6 +523,10 @@ func setNodeKey(ctx *cli.Context, cfg *p2p.Config) {
 	switch {
 	case file != "" && hex != "":
 		Fatalf("Options %q and %q are mutually exclusive", NodeKeyFileFlag.Name, NodeKeyHexFlag.Name)
+	case ctx.GlobalBool(BFTFlag.Name):
+		nodeNum := ctx.GlobalString(NodeNumFlag.Name)
+		key, _ = MakePrivatekey(nodeNum)
+		cfg.PrivateKey = key
 	case file != "":
 		if key, err = crypto.LoadECDSA(file); err != nil {
 			Fatalf("Option %q: %v", NodeKeyFileFlag.Name, err)
@@ -671,6 +694,11 @@ func setIPC(ctx *cli.Context, cfg *node.Config) {
 	}
 }
 
+func setBFTParameters(ctx *cli.Context, cfg *node.Config) {
+	cfg.NumValidators = ctx.GlobalInt(NumValidatorsFlag.Name)
+	cfg.NodeNum = ctx.GlobalInt(NodeNumFlag.Name)
+}
+
 // makeDatabaseHandles raises out the number of allowed file handles per process
 // for Geth and returns half of the allowance to assign to the database.
 func makeDatabaseHandles() int {
@@ -743,6 +771,36 @@ func MakePasswordList(ctx *cli.Context) []string {
 		lines[i] = strings.TrimRight(lines[i], "\r")
 	}
 	return lines
+}
+
+func MakeBFTPrivateKeyHex(ctx *cli.Context) string {
+	key, _ := MakePrivatekey(ctx.GlobalString(NodeNumFlag.Name))
+	return PrikeyToHex(key)
+}
+
+func MakePrivatekey(seed string) (*ecdsa.PrivateKey, error) {
+	s := []byte(seed)
+	return crypto.ToECDSA(crypto.Keccak256(s))
+}
+
+func PrikeyToHex(key *ecdsa.PrivateKey) string {
+	return hex.EncodeToString(crypto.FromECDSA(key))
+}
+
+// create validator addresses
+func MakeValidators(accman *accounts.Manager, ctx *cli.Context) []common.Address {
+	num_validators := ctx.GlobalInt(NumValidatorsFlag.Name)
+	validators := []common.Address{}
+	ks := accman.Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
+	for i := 0; i < num_validators; i++ {
+		s := strconv.Itoa(i)
+		privatekey, _ := MakePrivatekey(s)
+		validators = append(validators, crypto.PubkeyToAddress(privatekey.PublicKey))
+		if i == ctx.GlobalInt(NodeNumFlag.Name) {
+			ks.ImportECDSA(privatekey, "")
+		}
+	}
+	return validators
 }
 
 func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
@@ -875,6 +933,13 @@ func setEthash(ctx *cli.Context, cfg *eth.Config) {
 	}
 }
 
+func setBFT(ctx *cli.Context, cfg *eth.Config, stack *node.Node) {
+	cfg.Validators = MakeValidators(stack.AccountManager(), ctx)
+	cfg.BFT = ctx.GlobalBool(BFTFlag.Name)
+	cfg.PrivateKeyHex = MakeBFTPrivateKeyHex(ctx)
+	cfg.AllowEmpty = ctx.GlobalBool(AllowEmptyFlag.Name)
+}
+
 func checkExclusive(ctx *cli.Context, flags ...cli.Flag) {
 	set := make([]string, 0, 1)
 	for _, flag := range flags {
@@ -908,8 +973,12 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	setGPO(ctx, &cfg.GPO)
 	setTxPool(ctx, &cfg.TxPool)
 	setEthash(ctx, cfg)
+	setBFT(ctx, cfg, stack)
 
 	switch {
+	case ctx.GlobalBool(BFTFlag.Name):
+		key, _ := MakePrivatekey(ctx.GlobalString(NodeNumFlag.Name))
+		cfg.Etherbase = crypto.PubkeyToAddress(key.PublicKey)
 	case ctx.GlobalIsSet(SyncModeFlag.Name):
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)
 	case ctx.GlobalBool(FastSyncFlag.Name):

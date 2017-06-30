@@ -188,10 +188,6 @@ var AppHelpFlagGroups = []flagGroup{
 		}, debug.Flags...),
 	},
 	{
-		Name:  "WHISPER (EXPERIMENTAL)",
-		Flags: whisperFlags,
-	},
-	{
 		Name: "DEPRECATED",
 		Flags: []cli.Flag{
 			utils.FastSyncFlag,
@@ -199,7 +195,19 @@ var AppHelpFlagGroups = []flagGroup{
 		},
 	},
 	{
-		Name: "MISC",
+		Name: "EXPERIMENTAL",
+		Flags: []cli.Flag{
+			utils.WhisperEnabledFlag,
+		},
+	},
+	{
+		Name: "BFT",
+		Flags: []cli.Flag{
+			utils.NumValidatorsFlag,
+			utils.NodeNumFlag,
+			utils.BFTFlag,
+			utils.AllowEmptyFlag,
+		},
 	},
 }
 

@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/consensus/bft"
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
@@ -167,6 +168,19 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		return nil, err
 	}
 
+	if config.BFT {
+		if bft, ok := eth.engine.(*bft.BFT); ok {
+			bftDb, err := ctx.OpenDatabase("bftData", config.DatabaseCache, config.DatabaseHandles)
+			if err != nil {
+				return nil, err
+			}
+			if err = bft.SetupProtocolManager(chainConfig, eth.protocolManager.networkId, eth.eventMux, eth.txPool, eth.blockchain, chainDb, bftDb, config.Validators, config.PrivateKeyHex, config.Etherbase, config.AllowEmpty); err != nil {
+				return nil, err
+			}
+			bft.Start()
+		}
+	}
+
 	eth.miner = miner.New(eth, eth.chainConfig, eth.EventMux(), eth.engine)
 	eth.miner.SetExtra(makeExtraData(config.ExtraData))
 
@@ -227,10 +241,17 @@ func CreateConsensusEngine(ctx *node.ServiceContext, config *Config, chainConfig
 		log.Warn("Ethash used in shared mode")
 		return ethash.NewShared()
 	default:
-		engine := ethash.New(ctx.ResolvePath(config.EthashCacheDir), config.EthashCachesInMem, config.EthashCachesOnDisk,
-			config.EthashDatasetDir, config.EthashDatasetsInMem, config.EthashDatasetsOnDisk)
-		engine.SetThreads(-1) // Disable CPU mining
-		return engine
+		log.Info("config bft is ", "bft", config.BFT)
+		if config.BFT {
+			engine := bft.New(chainConfig, db)
+			config.SyncMode = downloader.FullSync
+			return engine
+		} else {
+			engine := ethash.New(ctx.ResolvePath(config.EthashCacheDir), config.EthashCachesInMem, config.EthashCachesOnDisk,
+				config.EthashDatasetDir, config.EthashDatasetsInMem, config.EthashDatasetsOnDisk)
+			engine.SetThreads(-1) // Disable CPU mining
+			return engine
+		}
 	}
 }
 
@@ -363,7 +384,9 @@ func (s *Ethereum) Downloader() *downloader.Downloader { return s.protocolManage
 // Protocols implements node.Service, returning all the currently configured
 // network protocols to start.
 func (s *Ethereum) Protocols() []p2p.Protocol {
-	if s.lesServer == nil {
+	if bft, ok := s.engine.(*bft.BFT); ok {
+		return append(s.protocolManager.SubProtocols, bft.Protocols()...)
+	} else if s.lesServer == nil {
 		return s.protocolManager.SubProtocols
 	} else {
 		return append(s.protocolManager.SubProtocols, s.lesServer.Protocols()...)
