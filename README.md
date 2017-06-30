@@ -56,7 +56,7 @@ To stop the process
 
 
 # Consensus
-The following consensus description is abstract, more detail is in [NCCU-BFT](https://github.com/NCCUCS-PLSM/NCCU-BFT-Consensus-for-Go-Ethereum/docs/consensus_protocol_detail.pdf).
+The following consensus description is abstract, more detail is in [NCCU-BFT](https://github.com/NCCUCS-PLSM/NCCU-BFT-for-Go-Ethereum/blob/nccu-bft/docs/consensus_protocol_detail.pdf).
  
 ### Terminology
   - Height: The height of processing block’s height, denoted by H.
@@ -84,7 +84,7 @@ BlockProposal(H, R, B): A BlockProposal includes a new block B for voting at hei
 VotingInstruction(H, R, B): Includes a block B and Prevote Lockset at previous round with a **Quorum**.
  
 ### States Diagram
-![alt text](https://github.com/NCCUCS-PLSM/NCCU-BFT-Consensus-for-Go-Ethereum/docs/state_diagram.png)
+![alt text](https://github.com/NCCUCS-PLSM/NCCU-BFT-for-Go-Ethereum/blob/nccu-bft/docs/states_diagram.png)
  
 ### Consensus steps
 ##### Step 1 *Propose*(height:H, round:R): 
