@@ -1,10 +1,14 @@
 # NCCU BFT Consensus for Go Ethereum (geth)
+NCCU BFT Consensus for Go Ethereum is developed by the Blockchain group of Dept. of Computer Science at the National Chengchi University, Taiwan.
 
 # Background
 This project, initiated in August 2016, aims to develop a variant of geth with Byzantine Fault Tolerance (BFT) consensus for use in a private deployment of Ethereum. In the beginning, we followed the consensus approach of [Hydrachain](https://github.com/HydraChain/hydrachain) to develop our consensus protocol. A salient feature of Hydrachain consensus protocol is that a block can be committed immediately by a node participating in the consensus once the node intercepts a quorum for the block. This can be viewed as an optimization attempting to minimize the latency of a block.
-However, as we had finished the implementation we soon realized that such an optimized commitment might be premature and leads to a fork. Both safety and liveness of consensus will be endangered, though we had submitted only [an issue of liveness](https://github.com/HydraChain/hydrachain/issues/83). Therefore, we changed our protocol by adding a phase that prevents premature commitment .The newly added phase is invoked after a node intercepts a quorum. The resulting protocol is then similar to the well known PBFT by Castro-Liskov, as this newly added phase serves the same purpose as the Commit phase in PBFT.
+
+However, as we had finished the implementation we soon realized that such an optimized commitment might be premature and leads to a fork. Both safety and liveness of consensus will be endangered, though we had submitted only [an issue of liveness](https://github.com/HydraChain/hydrachain/issues/83). Therefore, we changed our protocol by adding a phase that prevents premature commitment. The newly added phase is invoked after a node intercepts a quorum. The resulting protocol is then similar to the well known PBFT by Castro-Liskov (1999), as this newly added phase serves the same purpose as the Commit phase in PBFT.
+
 Note that HydraChain is inspired by [Tendermint](https://tendermint.com/), a PBFT-like consensus protocol. Indeed, one can deem HydraChain as a simplification of Tendermint. Hence, the demand to add one more phase to HydryChain inevitably steers our focus to Tendermint. Indeed, our revised implementation still keeps the proof-of-lock-change or PoLC mechanism that was first proposed in Tendermint and inherited in Hydrachain to gain further efficiency in the consensus process during round change. 
-Right after we finished the implementation of the revised protocol, geth released a new version with a pluggable framework of consensus engine. As that was also part of the original goal of this project, we adapted our implementation to a large degree to fit into the new consensus engine of geth and resulted in this version of NCCU BFT consensus for geth.
+
+Finally, right after we finished the implementation of the revised protocol, geth released a new version, 1.6.0, with a pluggable framework of consensus engine. As such an framework is also part of the original goal of this project, we adapted our implementation to a large degree to fit into the new consensus engine of geth and completed the current version of NCCU BFT consensus for geth.
 
 # Build from source
 Building geth requires both a Go (version 1.7 or later) and a C compiler. Once the dependencies are installed, run
@@ -20,7 +24,7 @@ Besides the flags geth support, there are three new command line flags to setup 
   * `--bft` Change the consensus engine to NCCU-BFT consensus.
   * `--num_validators value` The number of the validators in this chain.
   * `--node_num value` The identity number of this node (start with 0).
-  * `--allow_empty` Allow the blocks without transaction.
+  * `--allow_empty` Allow blocks without transaction.
 
 To start a NCCU-BFT chain with 2 validators, run the following command after *init*
 ```sh
@@ -56,12 +60,12 @@ To stop the process
 
 
 # Consensus
-The following consensus description is abstract, more detail is in [NCCU-BFT](https://github.com/NCCUCS-PLSM/NCCU-BFT-for-Go-Ethereum/blob/nccu-bft/docs/consensus_protocol_detail.pdf).
+We sketch our consensus protocol as follows and refer the readers to  [NCCU-BFT](https://github.com/NCCUCS-PLSM/NCCU-BFT-for-Go-Ethereum/blob/nccu-bft/docs/consensus_protocol_detail.pdf) for more details.
  
 ### Terminology
+  - Block: An Ethereum block, denoted by B.
   - Height: The height of processing block’s height, denoted by H.
   - Round: A round includes the 4 consensus steps, denoted by R. There may be multiple R in a H.
-  - Block: An Ethereum block, denoted by B.
   - Validators: The nodes that could participate the consensus process. The total number of validators is denoted by N.
   - Proposer: A validator that could propose a Proposal in a round.
  
@@ -117,7 +121,7 @@ Each validator checks the PrecommitVote Lockset(H, R) to determine whether it co
 We use Round-Robin to change proposer in each round.
  
 ### Optimization:
-In Step 3 and Step 4, if the validator got a **Quorum**, it can proceed immediately. 
+In Step 3 and Step 4, if the validator gets a **Quorum**, it can proceed immediately. 
  
 ### Constants
   - NumberOfValidators: Number of validators in the network.
@@ -127,13 +131,13 @@ In Step 3 and Step 4, if the validator got a **Quorum**, it can proceed immediat
   - TimeoutPrecommitVote: The maximum time for waiting more PrecommitVote. This is set to 1 seconds initially. 
   - TimeoutFactor: This is the factor used to extend the above timeouts after each round. More specifically, TimeoutX in   - round R = TimeoutX * TimeoutFactorR. TimeoutFactor is set to 1.5.
 ### Block header
-We set two fields below to constants.
+We set the following two fields to constants.
   - difficulty: Always set to 1.
   - nonce: Always set to 0.
  
-### Consensus proof
-For inserting a block and synchronization, a block should have a Precommit Lockset that includes a **Quorum**, to proof that the block is validated by consensus process. 
+### Proof of Consensus
+For inserting a block and synchronization, a block should have a Precommit Lockset that includes a **Quorum**, to prove that the block is validated by the consensus process. 
  
 # Future work
-Currently the validator set is not managed efficiently. We will develop a better way for it.
+Currently the validator set is fixed when starting geth. We plan to add some mechanisms to allow dynamic changes of validators. 
 
