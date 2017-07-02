@@ -109,6 +109,11 @@ var (
 		utils.GpoPercentileFlag,
 		utils.ExtraDataFlag,
 		configFileFlag,
+		// bft parameters
+		utils.NumValidatorsFlag,
+		utils.NodeNumFlag,
+		utils.BFTFlag,
+		utils.AllowEmptyFlag,
 	}
 
 	rpcFlags = []cli.Flag{

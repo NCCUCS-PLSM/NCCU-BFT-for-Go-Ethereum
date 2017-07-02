@@ -3,7 +3,7 @@
 --networkid 2234 \
 --port 30305 \
 --rpcport 8547 \
---datadir "bdata/node3" \
+--datadir "data/node3" \
 --nodiscover \
 \
 --rpc \
