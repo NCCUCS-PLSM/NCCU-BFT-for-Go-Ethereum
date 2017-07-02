@@ -1190,7 +1190,11 @@ func (rm *RoundManager) vote() *btypes.Vote {
 	lastPrecommitVoteLock := rm.hm.LastPrecommitVoteLock()
 
 	var vote *btypes.Vote
-	if rm.proposal != nil {
+	if lastPrecommitVoteLock != nil && lastPrecommitVoteLock.VoteType == 1 {
+		// vote previous PrecommitVote.
+		vote = btypes.NewVote(rm.height, rm.round, lastPrecommitVoteLock.Blockhash, 1)
+	} else if rm.proposal != nil {
+		// There is a proposal, Intercept the proposal.
 		switch bp := rm.proposal.(type) {
 		case *btypes.VotingInstruction: // vote for votinginstruction
 			quorum, _ := bp.LockSet().HasQuorum()
@@ -1201,53 +1205,14 @@ func (rm *RoundManager) vote() *btypes.Vote {
 			} else {
 				if lastPrecommitVoteLock == nil {
 					vote = btypes.NewVote(rm.height, rm.round, common.StringToHash(""), 2)
-				} else {
-					vt := lastPrecommitVoteLock.VoteType
-					switch vt {
-					case 1: // repeat vote
-						log.Debug("voting on last vote")
-						vote = btypes.NewVote(rm.height, rm.round, lastPrecommitVoteLock.Blockhash, 1)
-					default: // vote nil
-						vote = btypes.NewVote(rm.height, rm.round, common.StringToHash(""), 2)
-					}
 				}
 			}
-			log.Debug("voting on instruction")
-			vote = btypes.NewVote(rm.height, rm.round, bp.Blockhash(), 1)
 		case *btypes.BlockProposal:
-			// assert isinstance(self.proposal, BlockProposal)
-			// assert isinstance(self.proposal.block, Block)  # already linked to chain
-			// assert self.proposal.lockset.has_NoQuorum or self.round == 0
-			// assert self.proposal.block.prevhash == self.cm.head.hash
-			if lastPrecommitVoteLock == nil {
-				log.Debug("voting on new proporsal")
-				vote = btypes.NewVote(rm.height, rm.round, rm.proposal.Blockhash(), 1)
-			} else {
-				vt := lastPrecommitVoteLock.VoteType
-				switch vt {
-				case 1: //repeat vote
-					log.Debug("voting on last vote")
-					vote = btypes.NewVote(rm.height, rm.round, lastPrecommitVoteLock.Blockhash, 1)
-				default: // vote to proposed vote
-					log.Debug("voting proposed block")
-					vote = btypes.NewVote(rm.height, rm.round, rm.proposal.Blockhash(), 1)
-				}
-			}
+			log.Debug("voting on new proporsal")
+			vote = btypes.NewVote(rm.height, rm.round, rm.proposal.Blockhash(), 1)
 		}
 	} else if rm.timeoutTime != 0 && float64(rm.cm.Now()) >= rm.timeoutTime {
-		if lastPrecommitVoteLock == nil {
-			vote = btypes.NewVote(rm.height, rm.round, common.StringToHash(""), 2)
-		} else {
-			vt := lastPrecommitVoteLock.VoteType
-			switch vt {
-			case 1: // repeat vote
-				log.Debug("voting on last vote")
-				vote = btypes.NewVote(rm.height, rm.round, lastPrecommitVoteLock.Blockhash, 1)
-			default: // vote nil
-				log.Debug("voting nil")
-				vote = btypes.NewVote(rm.height, rm.round, common.StringToHash(""), 2)
-			}
-		}
+		vote = btypes.NewVote(rm.height, rm.round, common.StringToHash(""), 2)
 	} else {
 		log.Debug("Timeout time not reach, curr vs timeout:", "curr", float64(rm.cm.Now()), "timeout", rm.timeoutTime)
 		return nil
