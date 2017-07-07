@@ -84,8 +84,8 @@ If there are over ⅔ N vote to the same block B within a Lockset, it has a **Qu
  
 ### Proposals
 The proposer should propose a proposal containing a block B at the beginning of a round.
-BlockProposal(H, R, B): A BlockProposal includes a new block B for voting at height H and round R.
-VotingInstruction(H, R, B): Includes a block B and Prevote Lockset at previous round with a **Quorum**.
+ * BlockProposal(H, R, B): A BlockProposal includes a new block B for voting at height H and round R.
+ * VotingInstruction(H, R, B): Includes a block B and Prevote Lockset at previous round with a **Quorum**.
  
 ### States Diagram
 ![alt text](https://github.com/NCCUCS-PLSM/NCCU-BFT-for-Go-Ethereum/blob/nccu-bft/docs/states_diagram.png)
