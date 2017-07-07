@@ -85,7 +85,7 @@ If there are over ⅔ N vote to the same block B within a Lockset, it has a **Qu
 ### Proposals
 The proposer should propose a proposal containing a block B at the beginning of a round.
  * BlockProposal(H, R, B): A BlockProposal includes a new block B for voting at height H and round R.
- * VotingInstruction(H, R, B): Includes a block B and Prevote Lockset at previous round with a **Quorum**.
+ * VotingInstruction(H, R, B): Proposes the block B as it has a **Quorum** in the Prevote Lockset at previous round R', R' < R. (The term, "Votininstruction", originates from Hydrachain, and is used to signal the state of QuorumPossible, in which over 1/3 N prevotes for a block were received. Here we inherit the term, but change the definition and require a proposer to get a **Quorum** on a block to propose a VotingInstruction.)
  
 ### States Diagram
 ![alt text](https://github.com/NCCUCS-PLSM/NCCU-BFT-for-Go-Ethereum/blob/nccu-bft/docs/states_diagram.png)
