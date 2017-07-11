@@ -1199,7 +1199,7 @@ func (rm *RoundManager) vote() *btypes.Vote {
 		case *btypes.VotingInstruction: // vote for votinginstruction
 			quorum, _ := bp.LockSet().HasQuorum()
 			// quorumPossible, _ := bp.LockSet().QuorumPossible()
-			if quorum {
+			if quorum && bp.LockSet().Round() > lastPrecommitVoteLock.Round {
 				log.Debug("vote votinginstruction quorum")
 				vote = btypes.NewVote(rm.height, rm.round, bp.Blockhash(), 1)
 			} else {
