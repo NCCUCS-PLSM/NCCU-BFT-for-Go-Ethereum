@@ -174,7 +174,7 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 			if err != nil {
 				return nil, err
 			}
-			if err = bft.SetupProtocolManager(chainConfig, eth.protocolManager.networkId, eth.eventMux, eth.txPool, eth.blockchain, chainDb, bftDb, config.Validators, config.PrivateKeyHex, config.Etherbase, config.AllowEmpty); err != nil {
+			if err = bft.SetupProtocolManager(chainConfig, eth.protocolManager.networkId, eth.eventMux, eth.txPool, eth.blockchain, chainDb, bftDb, vmConfig, config.Validators, config.PrivateKeyHex, config.Etherbase, config.AllowEmpty); err != nil {
 				return nil, err
 			}
 			bft.Start()

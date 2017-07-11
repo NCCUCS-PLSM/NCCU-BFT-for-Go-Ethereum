@@ -26,6 +26,7 @@ import (
 	btypes "github.com/ethereum/go-ethereum/consensus/bft/types"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -58,6 +59,7 @@ type ProtocolManager struct {
 	blockchain  *core.BlockChain
 	chaindb     ethdb.Database
 	chainconfig *params.ChainConfig
+	vmConfig    vm.Config
 
 	peers *peerSet
 
@@ -77,7 +79,7 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
 // with the ethereum network.
-func NewProtocolManager(config *params.ChainConfig, networkId uint64, mux *event.TypeMux, txpool *core.TxPool, blockchain *core.BlockChain, chaindb ethdb.Database, bftdb ethdb.Database, validators []common.Address, privateKeyHex string, etherbase common.Address, allowEmpty bool) (*ProtocolManager, error) {
+func NewProtocolManager(config *params.ChainConfig, networkId uint64, mux *event.TypeMux, txpool *core.TxPool, blockchain *core.BlockChain, chaindb ethdb.Database, bftdb ethdb.Database, vmConfig vm.Config, validators []common.Address, privateKeyHex string, etherbase common.Address, allowEmpty bool) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		networkId:   networkId,
@@ -87,6 +89,7 @@ func NewProtocolManager(config *params.ChainConfig, networkId uint64, mux *event
 		chaindb:     chaindb,
 		chainconfig: config,
 		peers:       newPeerSet(),
+		vmConfig:    vmConfig,
 	}
 
 	manager.SubProtocols = make([]p2p.Protocol, 0, len(ProtocolVersions))
@@ -364,6 +367,31 @@ func (self *ProtocolManager) linkBlock(block *types.Block) *types.Block {
 	}
 
 	return block
+}
+
+func (self *ProtocolManager) validateBlock(block *types.Block) error {
+	bc := self.blockchain
+	parent := bc.GetBlock(block.ParentHash(), block.NumberU64()-1)
+	stateCache, err := bc.State()
+	if err != nil {
+		log.Error("Error occur when new statedb in validating block", "err", err)
+		return err
+	}
+
+	// err = stateCache.Reset(parent.Root())
+	receipts, _, usedGas, err := bc.Processor().Process(block, stateCache, self.vmConfig)
+	if err != nil {
+		log.Error("Error occur when process block in validating block", "err", err)
+		return err
+	}
+	// Validate the state using the default validator
+	err = bc.Validator().ValidateState(block, parent, stateCache, receipts, usedGas)
+	if err != nil {
+		log.Error("Error occur when validate state in validating block", "err", err)
+		return err
+	}
+
+	return nil
 }
 
 // EthNodeInfo represents a short summary of the Ethereum sub-protocol metadata known

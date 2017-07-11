@@ -15,7 +15,7 @@
 */**/*dapps*
 build/_vendor/pkg
 examples/data
-
+examples/nohup.out
 #*
 .#*
 *#

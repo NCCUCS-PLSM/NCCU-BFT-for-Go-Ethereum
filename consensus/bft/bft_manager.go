@@ -605,9 +605,14 @@ func (cm *ConsensusManager) AddProposal(p btypes.Proposal, peer *peer) bool {
 	switch proposal := p.(type) {
 	case *btypes.BlockProposal:
 		// log.Debug("adding bp in :", proposal.Height, proposal.Round, proposal.Blockhash())
+		if err := cm.pm.validateBlock(proposal.Block); err != nil {
+			log.Error("Received proposal block is invalid")
+		}
+
 		if peer != nil {
 			cm.synchronizer.onProposal(p, peer)
 		}
+
 		if proposal.Block.Number().Uint64() != proposal.Height {
 			log.Debug("proposal different height")
 			return false
@@ -1200,7 +1205,7 @@ func (rm *RoundManager) vote() *btypes.Vote {
 			quorum, _ := bp.LockSet().HasQuorum()
 			// quorumPossible, _ := bp.LockSet().QuorumPossible()
 			if quorum && bp.LockSet().Round() > lastPrecommitVoteLock.Round {
-				log.Debug("vote votinginstruction quorum")
+				log.Debug("vote votinginstruction quorum	")
 				vote = btypes.NewVote(rm.height, rm.round, bp.Blockhash(), 1)
 			} else {
 				if lastPrecommitVoteLock == nil {

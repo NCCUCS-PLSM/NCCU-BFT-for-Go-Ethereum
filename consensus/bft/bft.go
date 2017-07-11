@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
@@ -47,13 +48,13 @@ func New(config *params.ChainConfig, db ethdb.Database) *BFT {
 	return bft
 }
 
-func (b *BFT) SetupProtocolManager(chainConfig *params.ChainConfig, networkId uint64, mux *event.TypeMux, txpool *core.TxPool, blockchain *core.BlockChain, chainDb ethdb.Database, bftDb ethdb.Database, validators []common.Address, privateKeyHex string, etherbase common.Address, allowEmpty bool) error {
+func (b *BFT) SetupProtocolManager(chainConfig *params.ChainConfig, networkId uint64, mux *event.TypeMux, txpool *core.TxPool, blockchain *core.BlockChain, chainDb ethdb.Database, bftDb ethdb.Database, vmConfig vm.Config, validators []common.Address, privateKeyHex string, etherbase common.Address, allowEmpty bool) error {
 	var err error
 	privkey, _ := crypto.HexToECDSA(privateKeyHex)
 	// addr := crypto.ToECDSAPub(crypto.FromECDSA(privkey))
 	b.signer = crypto.PubkeyToAddress(privkey.PublicKey)
 	b.blockchain = blockchain
-	if b.pm, err = NewProtocolManager(chainConfig, networkId, mux, txpool, blockchain, chainDb, bftDb, validators, privateKeyHex, etherbase, allowEmpty); err != nil {
+	if b.pm, err = NewProtocolManager(chainConfig, networkId, mux, txpool, blockchain, chainDb, bftDb, vmConfig, validators, privateKeyHex, etherbase, allowEmpty); err != nil {
 		return err
 	}
 	return nil
