@@ -443,8 +443,16 @@ func (self *worker) commitNewWork() {
 		log.Error("Failed to fetch pending transactions", "err", err)
 		return
 	}
+
 	txs := types.NewTransactionsByPriceAndNonce(pending)
+
 	work.commitTransactions(self.mux, txs, self.chain, self.coinbase)
+
+	if atomic.LoadInt32(&self.mining) == 1 && work.tcount == 0 {
+		time.Sleep(3 * time.Second)
+		go self.commitNewWork()
+		return
+	}
 
 	self.eth.TxPool().RemoveBatch(work.failedTxs)
 

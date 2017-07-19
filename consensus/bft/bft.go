@@ -32,6 +32,7 @@ type BFT struct {
 	config     *params.ChainConfig // Consensus engine configuration parameters
 	db         ethdb.Database      // Database to store and retrieve snapshot checkpoints
 	blockchain *core.BlockChain
+	txpool     *core.TxPool
 
 	pm *ProtocolManager
 
@@ -54,6 +55,7 @@ func (b *BFT) SetupProtocolManager(chainConfig *params.ChainConfig, networkId ui
 	// addr := crypto.ToECDSAPub(crypto.FromECDSA(privkey))
 	b.signer = crypto.PubkeyToAddress(privkey.PublicKey)
 	b.blockchain = blockchain
+	b.txpool = txpool
 	if b.pm, err = NewProtocolManager(chainConfig, networkId, mux, txpool, blockchain, chainDb, bftDb, vmConfig, validators, privateKeyHex, etherbase, allowEmpty); err != nil {
 		return err
 	}
@@ -148,7 +150,7 @@ func (b *BFT) Finalize(chain consensus.ChainReader, header *types.Header, state 
 
 func (b *BFT) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error) {
 	// start voting mechanism
-	log.Info("Sealing", "block n", block.Number())
+	log.Info("Sealing", "block n", block.Number(), "txs", len(block.Transactions()))
 	abort := make(chan struct{})
 	found := make(chan *types.Block)
 

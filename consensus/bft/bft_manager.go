@@ -141,10 +141,6 @@ func NewConsensusManager(manager *ProtocolManager, chain *core.BlockChain, db et
 		getHeightMu:        sync.RWMutex{},
 	}
 
-	if !cm.contract.isValidators(cm.coinbase) {
-		panic("Not Validators")
-	}
-
 	cm.initializeLocksets()
 
 	// old votes don't count
@@ -335,6 +331,11 @@ func (cm *ConsensusManager) hasPendingTransactions() bool {
 }
 
 func (cm *ConsensusManager) Process(block *types.Block, abort chan struct{}, found chan *types.Block) {
+	if !cm.contract.isValidators(cm.coinbase) {
+		log.Info("Node is Not a Validator")
+		return
+	}
+
 	if pls := cm.lastCommittingLockset(); pls != nil {
 		cm.storeLastCommittingLockset(pls)
 	}

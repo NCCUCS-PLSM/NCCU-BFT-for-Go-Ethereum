@@ -126,6 +126,10 @@ func NewProtocolManager(config *params.ChainConfig, networkId uint64, mux *event
 }
 
 func (pm *ProtocolManager) Start() {
+	if !pm.consensusContract.isValidators(pm.consensusContract.coinbase) {
+		log.Info("not Validator")
+		return
+	}
 	go pm.announce()
 }
 
