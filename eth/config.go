@@ -120,6 +120,7 @@ type Config struct {
 	Validators    []common.Address
 	PrivateKeyHex string
 	AllowEmpty    bool
+	ByzantineMode int
 }
 
 type configMarshaling struct {

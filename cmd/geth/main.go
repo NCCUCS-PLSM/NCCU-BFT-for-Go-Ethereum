@@ -114,6 +114,7 @@ var (
 		utils.NodeNumFlag,
 		utils.BFTFlag,
 		utils.AllowEmptyFlag,
+		utils.ByzantineModeFlag,
 	}
 
 	rpcFlags = []cli.Flag{

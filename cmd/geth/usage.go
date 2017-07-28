@@ -207,6 +207,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.NodeNumFlag,
 			utils.BFTFlag,
 			utils.AllowEmptyFlag,
+			utils.ByzantineModeFlag,
 		},
 	},
 }

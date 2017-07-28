@@ -491,6 +491,11 @@ var (
 		Name:  "allow-empty",
 		Usage: "allow empty block",
 	}
+	ByzantineModeFlag = cli.IntFlag{
+		Name:  "byzantine-mode",
+		Usage: "changes the mode for node strategy, 0 is normal, 1 is DifferentProposal, 2 is AlwaysVote, 3 is AlwaysAgree, 4 is NoResponse, 5 is ByzantineMode with 1~3",
+		Value: 0,
+	}
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating
@@ -939,6 +944,7 @@ func setBFT(ctx *cli.Context, cfg *eth.Config, stack *node.Node) {
 		cfg.Validators = MakeValidators(stack.AccountManager(), ctx)
 		cfg.PrivateKeyHex = MakeBFTPrivateKeyHex(ctx)
 		cfg.AllowEmpty = ctx.GlobalBool(AllowEmptyFlag.Name)
+		cfg.ByzantineMode = ctx.GlobalInt(ByzantineModeFlag.Name)
 	}
 }
 

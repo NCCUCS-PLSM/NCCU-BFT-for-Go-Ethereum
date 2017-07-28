@@ -83,6 +83,13 @@ func containsAddress(s []common.Address, e common.Address) bool {
 	return false
 }
 
+type StrategyConfig struct {
+	DifferentProposal bool
+	AlwaysVote        bool
+	AlwaysAgree       bool
+	NoResponse        bool
+}
+
 type ConsensusManager struct {
 	pm                      *ProtocolManager
 	isAllowEmptyBlocks      bool
@@ -116,6 +123,7 @@ type ConsensusManager struct {
 	processMu sync.Mutex
 
 	Enable bool
+	Config StrategyConfig
 }
 
 func NewConsensusManager(manager *ProtocolManager, chain *core.BlockChain, db ethdb.Database, cc *ConsensusContract, privkeyhex string) *ConsensusManager {
@@ -139,6 +147,7 @@ func NewConsensusManager(manager *ProtocolManager, chain *core.BlockChain, db et
 		coinbase:           cc.coinbase,
 		Enable:             true,
 		getHeightMu:        sync.RWMutex{},
+		Config:             StrategyConfig{false, false, false, false},
 	}
 
 	cm.initializeLocksets()
@@ -266,33 +275,6 @@ func (cm *ConsensusManager) loadPrecommitLockset(blockhash common.Hash) *btypes.
 	return pls
 }
 
-// func (cm *ConsensusManager) storeProposal(bp *btypes.BlockProposal) error {
-// 	bytes, err := rlp.EncodeToBytes(bp)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	key := fmt.Sprintf("blockproposal:%s", bp.Blockhash())
-// 	if err := cm.hdcDb.Put([]byte(key), bytes); err != nil {
-// 		log.Error("failed to store proposal into database: %v", err)
-// 		return err
-// 	}
-// 	return nil
-// }
-
-// func (cm *ConsensusManager) loadProposal(blockhash common.Hash) *btypes.BlockProposal {
-// 	key := fmt.Sprintf("blockproposal:%s", blockhash)
-// 	data, _ := cm.hdcDb.Get([]byte(key))
-// 	if len(data) == 0 {
-// 		return nil
-// 	}
-// 	var bp *btypes.BlockProposal
-// 	if err := rlp.Decode(bytes.NewReader(data), &bp); err != nil {
-// 		log.Error("invalid proposal RLP for hash %x: %v", blockhash, err)
-// 		return nil
-// 	}
-// 	return bp
-// }
-
 func (cm *ConsensusManager) getPrecommitLocksetByHeight(height uint64) *btypes.PrecommitLockSet {
 	if height >= cm.Height() {
 		log.Error("getPrecommitLocksetByHeight error")
@@ -364,7 +346,6 @@ func (cm *ConsensusManager) Process(block *types.Block, abort chan struct{}, fou
 func (cm *ConsensusManager) process() {
 	if !cm.isReady() {
 		log.Debug("---------------not ready------------------")
-
 		// cm.setupAlarm(h)
 		return
 	} else {
@@ -563,6 +544,7 @@ func (cm *ConsensusManager) AddProposal(p btypes.Proposal, peer *peer) bool {
 	if p == nil {
 		panic("nil peer in cm AddProposal")
 	}
+
 	if p.GetHeight() < cm.Height() {
 		log.Debug("proposal from past")
 		return false
@@ -596,10 +578,6 @@ func (cm *ConsensusManager) AddProposal(p btypes.Proposal, peer *peer) bool {
 				log.Debug("proposal invalid, ")
 				return false
 			}
-			// replace with the quorum votes
-			// if result, _ := ls.HasQuorum(); result {
-			// 	delete(cm.heights, ls.Height())
-			// }
 		}
 	}
 
@@ -1042,6 +1020,23 @@ func (rm *RoundManager) process() {
 	default:
 		log.Debug("propose nothing")
 	}
+	if rm.cm.Config.AlwaysAgree {
+		if rm.voteLock == nil {
+			log.Info("Vote byzantine votes")
+			blockhash := rm.proposal.Blockhash()
+			vote := btypes.NewVote(rm.height, rm.round, blockhash, 1)
+			precommitVote := btypes.NewPrecommitVote(rm.height, rm.round, blockhash, 1)
+
+			rm.cm.Sign(vote)
+			rm.cm.Sign(precommitVote)
+
+			rm.voteLock = vote
+			rm.precommitVoteLock = precommitVote
+
+			rm.addVote(vote, false, true)
+			rm.addPrecommitVote(precommitVote, false, true)
+		}
+	}
 	if rm.voteLock != nil {
 		log.Debug("voteLock is not nil", "height", rm.height, "roound", rm.round)
 	} else {
@@ -1099,8 +1094,26 @@ func (rm *RoundManager) propose() btypes.Proposal {
 		log.Debug("already propose in this HR", rm.height, rm.round)
 		return rm.proposal
 	}
+
 	roundLockset := rm.cm.lastValidLockset()
 	var proposal btypes.Proposal
+	if rm.cm.Config.DifferentProposal == true {
+		log.Debug("send two proposals")
+		if bp := rm.mkProposal(); bp != nil {
+			header := bp.Block.Header()
+			header.Extra = []byte("Byzantine block")
+			block := bp.Block.WithSeal(header)
+			if bp2, err := btypes.NewBlockProposal(bp.Height, bp.Round, block, bp.SigningLockset, bp.RoundLockset); err != nil {
+				rm.cm.Sign(bp2)
+				rm.cm.pm.BroadcastTwoBlockProposal(bp, bp2)
+			} else {
+				log.Error("create bp2 occur error")
+			}
+			return nil
+		} else {
+			return nil
+		}
+	}
 
 	if roundLockset == nil && rm.round == 0 {
 		log.Debug("make proposal")
@@ -1110,7 +1123,6 @@ func (rm *RoundManager) propose() btypes.Proposal {
 			return nil
 		}
 	} else if roundLockset == nil {
-
 		log.Error("no valid round lockset for height", "height", rm.height, "round", rm.round)
 		return nil
 	} else {

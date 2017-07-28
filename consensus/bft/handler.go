@@ -357,6 +357,27 @@ func (pm *ProtocolManager) BroadcastBFTMsg(msg interface{}) {
 	}
 }
 
+func (pm *ProtocolManager) BroadcastTwoBlockProposal(bp1 *btypes.BlockProposal, bp2 *btypes.BlockProposal) {
+	var err error
+
+	peers := pm.peers.PeersWithoutPrecommit(bp1.Hash())
+	// log.Debug("There are ", "peer count", len(peers))
+	for i := 0; i < len(peers); i++ {
+		peer := peers[i]
+		if i < len(peers)/2 {
+			err = peer.SendNewBlockProposal(bp1)
+			if err != nil {
+				log.Debug("err: ", err)
+			}
+		} else {
+			err = peer.SendNewBlockProposal(bp2)
+			if err != nil {
+				log.Debug("err: ", err)
+			}
+		}
+	}
+}
+
 func (self *ProtocolManager) linkBlock(block *types.Block) *types.Block {
 	self.addTransactionLock.Lock()
 	defer self.addTransactionLock.Unlock()
