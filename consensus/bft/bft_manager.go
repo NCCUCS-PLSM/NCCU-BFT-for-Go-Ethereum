@@ -147,7 +147,6 @@ func NewConsensusManager(manager *ProtocolManager, chain *core.BlockChain, db et
 		coinbase:           cc.coinbase,
 		Enable:             true,
 		getHeightMu:        sync.RWMutex{},
-		Config:             StrategyConfig{false, false, false, false},
 	}
 
 	cm.initializeLocksets()
@@ -196,6 +195,25 @@ func (cm *ConsensusManager) enable() {
 
 func (cm *ConsensusManager) disable() {
 	cm.Enable = false
+}
+
+func (cm *ConsensusManager) setByzantineMode(mode int) {
+	switch mode {
+	case 0:
+		cm.Config = StrategyConfig{false, false, false, false}
+	case 1:
+		cm.Config = StrategyConfig{true, false, false, false}
+	case 2:
+		cm.Config = StrategyConfig{false, true, false, false}
+	case 3:
+		cm.Config = StrategyConfig{false, false, true, false}
+	case 4:
+		cm.Config = StrategyConfig{false, false, false, true}
+	case 5:
+		cm.Config = StrategyConfig{true, true, true, false}
+	default:
+		cm.Config = StrategyConfig{false, false, false, false}
+	}
 }
 
 func (cm *ConsensusManager) initializeLocksets() {
@@ -313,6 +331,7 @@ func (cm *ConsensusManager) hasPendingTransactions() bool {
 }
 
 func (cm *ConsensusManager) Process(block *types.Block, abort chan struct{}, found chan *types.Block) {
+	log.Debug("Start Process")
 	if !cm.contract.isValidators(cm.coinbase) {
 		log.Info("Node is Not a Validator")
 		return
@@ -338,7 +357,6 @@ func (cm *ConsensusManager) Process(block *types.Block, abort chan struct{}, fou
 		default:
 			cm.process()
 			time.Sleep(100 * time.Millisecond)
-
 		}
 	}
 }
@@ -584,9 +602,9 @@ func (cm *ConsensusManager) AddProposal(p btypes.Proposal, peer *peer) bool {
 	switch proposal := p.(type) {
 	case *btypes.BlockProposal:
 		// log.Debug("adding bp in :", proposal.Height, proposal.Round, proposal.Blockhash())
-		if err := cm.pm.validateBlock(proposal.Block); err != nil {
-			log.Error("Received proposal block is invalid")
-		}
+		// if err := cm.pm.validateBlock(proposal.Block); err != nil {
+		// 	log.Error("Received proposal block is invalid")
+		// }
 
 		if peer != nil {
 			cm.synchronizer.onProposal(p, peer)
@@ -1021,7 +1039,7 @@ func (rm *RoundManager) process() {
 		log.Debug("propose nothing")
 	}
 	if rm.cm.Config.AlwaysAgree {
-		if rm.voteLock == nil {
+		if rm.voteLock == nil && rm.proposal != nil {
 			log.Info("Vote byzantine votes")
 			blockhash := rm.proposal.Blockhash()
 			vote := btypes.NewVote(rm.height, rm.round, blockhash, 1)
@@ -1103,12 +1121,24 @@ func (rm *RoundManager) propose() btypes.Proposal {
 			header := bp.Block.Header()
 			header.Extra = []byte("Byzantine block")
 			block := bp.Block.WithSeal(header)
-			if bp2, err := btypes.NewBlockProposal(bp.Height, bp.Round, block, bp.SigningLockset, bp.RoundLockset); err != nil {
+			var roundLockset *btypes.LockSet
+			if bp.Round == 0 {
+				roundLockset = nil
+			} else {
+				roundLockset = bp.RoundLockset
+			}
+
+			if bp2, err := btypes.NewBlockProposal(bp.Height, bp.Round, block, bp.SigningLockset, roundLockset); err == nil && bp2 != nil {
+				log.Info("create bp1", "hash", bp.Hash())
+				log.Info("create bp2", "hash", bp2.Hash())
 				rm.cm.Sign(bp2)
 				rm.cm.pm.BroadcastTwoBlockProposal(bp, bp2)
 			} else {
-				log.Error("create bp2 occur error")
+				log.Error("bp2 is empty", "bp2", bp2)
+				log.Error("create bp2 occur error,", "err", err)
 			}
+
+			rm.proposal = bp
 			return nil
 		} else {
 			return nil
@@ -1216,7 +1246,7 @@ func (rm *RoundManager) vote() *btypes.Vote {
 		switch bp := rm.proposal.(type) {
 		case *btypes.VotingInstruction: // vote for votinginstruction
 			quorum, _ := bp.LockSet().HasQuorum()
-			// quorumPossible, _ := bp.LockSet().QuorumPossible()
+
 			if quorum && bp.LockSet().Round() > lastPrecommitVoteLock.Round {
 				log.Debug("vote votinginstruction quorum	")
 				vote = btypes.NewVote(rm.height, rm.round, bp.Blockhash(), 1)

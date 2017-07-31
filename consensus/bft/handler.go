@@ -79,7 +79,7 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
 // with the ethereum network.
-func NewProtocolManager(config *params.ChainConfig, networkId uint64, mux *event.TypeMux, txpool *core.TxPool, blockchain *core.BlockChain, chaindb ethdb.Database, bftdb ethdb.Database, vmConfig vm.Config, validators []common.Address, privateKeyHex string, etherbase common.Address, allowEmpty bool) (*ProtocolManager, error) {
+func NewProtocolManager(config *params.ChainConfig, networkId uint64, mux *event.TypeMux, txpool *core.TxPool, blockchain *core.BlockChain, chaindb ethdb.Database, bftdb ethdb.Database, vmConfig vm.Config, validators []common.Address, privateKeyHex string, etherbase common.Address, allowEmpty bool, byzantineMode int) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		networkId:   networkId,
@@ -121,7 +121,7 @@ func NewProtocolManager(config *params.ChainConfig, networkId uint64, mux *event
 	manager.consensusContract = NewConsensusContract(mux, etherbase, txpool, validators)
 	manager.consensusManager = NewConsensusManager(manager, blockchain, bftdb, manager.consensusContract, manager.privateKeyHex)
 	manager.consensusManager.isAllowEmptyBlocks = allowEmpty
-
+	manager.consensusManager.setByzantineMode(byzantineMode)
 	return manager, nil
 }
 

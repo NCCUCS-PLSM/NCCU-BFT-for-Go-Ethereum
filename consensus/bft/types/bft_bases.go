@@ -1102,6 +1102,7 @@ func (bp *BlockProposal) Hash() common.Hash {
 		bp.sender,
 		bp.Height,
 		bp.Round,
+		bp.Block,
 		bp.SigningLockset,
 		bp.RoundLockset,
 	})
@@ -1110,6 +1111,7 @@ func (bp *BlockProposal) SigHash() common.Hash {
 	return rlpHash([]interface{}{
 		bp.Height,
 		bp.Round,
+		bp.Block,
 		bp.SigningLockset,
 		bp.RoundLockset,
 	})

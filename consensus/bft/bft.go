@@ -3,7 +3,7 @@ package bft
 import (
 	"errors"
 	"math/big"
-	"math/rand"
+	// "math/rand"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -49,14 +49,14 @@ func New(config *params.ChainConfig, db ethdb.Database) *BFT {
 	return bft
 }
 
-func (b *BFT) SetupProtocolManager(chainConfig *params.ChainConfig, networkId uint64, mux *event.TypeMux, txpool *core.TxPool, blockchain *core.BlockChain, chainDb ethdb.Database, bftDb ethdb.Database, vmConfig vm.Config, validators []common.Address, privateKeyHex string, etherbase common.Address, allowEmpty bool) error {
+func (b *BFT) SetupProtocolManager(chainConfig *params.ChainConfig, networkId uint64, mux *event.TypeMux, txpool *core.TxPool, blockchain *core.BlockChain, chainDb ethdb.Database, bftDb ethdb.Database, vmConfig vm.Config, validators []common.Address, privateKeyHex string, etherbase common.Address, allowEmpty bool, byzantineMode int) error {
 	var err error
 	privkey, _ := crypto.HexToECDSA(privateKeyHex)
 	// addr := crypto.ToECDSAPub(crypto.FromECDSA(privkey))
 	b.signer = crypto.PubkeyToAddress(privkey.PublicKey)
 	b.blockchain = blockchain
 	b.txpool = txpool
-	if b.pm, err = NewProtocolManager(chainConfig, networkId, mux, txpool, blockchain, chainDb, bftDb, vmConfig, validators, privateKeyHex, etherbase, allowEmpty); err != nil {
+	if b.pm, err = NewProtocolManager(chainConfig, networkId, mux, txpool, blockchain, chainDb, bftDb, vmConfig, validators, privateKeyHex, etherbase, allowEmpty, byzantineMode); err != nil {
 		return err
 	}
 	return nil
@@ -167,12 +167,13 @@ func (b *BFT) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan 
 		close(abort)
 	}
 	if result.Header().Coinbase != b.signer {
-		delay := time.Duration(rand.Intn(5)+6) * 500 * time.Millisecond
-		select {
-		case <-stop:
-			return nil, nil
-		case <-time.After(delay):
-		}
+		// delay := time.Duration(rand.Intn(5)+6) * 500 * time.Millisecond
+		// select {
+		// case <-stop:
+		// 	return nil, nil
+		// case <-time.After(delay):
+		// }
+		return nil, nil
 	}
 	return result, nil
 }

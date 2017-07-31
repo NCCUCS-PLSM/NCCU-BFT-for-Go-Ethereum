@@ -699,11 +699,6 @@ func setIPC(ctx *cli.Context, cfg *node.Config) {
 	}
 }
 
-func setBFTParameters(ctx *cli.Context, cfg *node.Config) {
-	cfg.NumValidators = ctx.GlobalInt(NumValidatorsFlag.Name)
-	cfg.NodeNum = ctx.GlobalInt(NodeNumFlag.Name)
-}
-
 // makeDatabaseHandles raises out the number of allowed file handles per process
 // for Geth and returns half of the allowance to assign to the database.
 func makeDatabaseHandles() int {
